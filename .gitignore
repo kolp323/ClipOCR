@@ -22,3 +22,4 @@ logs/
 *.zip
 .DS_Store
 Thumbs.db
+release-v*/
