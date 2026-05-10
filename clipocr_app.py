@@ -377,7 +377,6 @@ class MainWindow(QMainWindow):
         if self.tray.isVisible():
             self.hide()
             event.ignore()
-            self.tray.showMessage("ClipOCR", "Still running in the tray.", QSystemTrayIcon.MessageIcon.Information, 1600)
         else:
             event.accept()
 
