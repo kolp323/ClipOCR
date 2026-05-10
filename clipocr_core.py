@@ -238,10 +238,15 @@ def write_text_to_clipboard(text: str) -> None:
     raise ClipOCRError("No clipboard writer available")
 
 
-def recognize_clipboard_image(config: Dict[str, Union[str, int]]) -> str:
+def ocr_clipboard_image(config: Dict[str, Union[str, int]]) -> str:
     image = read_clipboard_image()
     markdown = clean_markdown(call_vision_api(config, image_to_data_url(image)))
     if not markdown:
         raise ClipOCRError("OCR result is empty after Markdown cleanup")
+    return markdown
+
+
+def recognize_clipboard_image(config: Dict[str, Union[str, int]]) -> str:
+    markdown = ocr_clipboard_image(config)
     write_text_to_clipboard(markdown)
     return markdown

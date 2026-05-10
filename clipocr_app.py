@@ -31,8 +31,9 @@ from clipocr_core import (
     ClipOCRError,
     default_config_path,
     image_fingerprint,
+    ocr_clipboard_image,
     read_clipboard_image,
-    recognize_clipboard_image,
+    write_text_to_clipboard,
     validate_config,
 )
 
@@ -88,7 +89,7 @@ class OcrWorker(QThread):
 
     def run(self) -> None:
         try:
-            self.finished_ok.emit(recognize_clipboard_image(self.config))
+            self.finished_ok.emit(ocr_clipboard_image(self.config))
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -307,6 +308,15 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def on_recognition_done(self, markdown: str) -> None:
+        try:
+            QApplication.clipboard().setText(markdown)
+            if QApplication.clipboard().text() != markdown:
+                write_text_to_clipboard(markdown)
+        except Exception as exc:
+            self.set_status(STATUS_ERROR)
+            self.log(f"Clipboard write failed: {exc}")
+            return
+
         self.log(f"Recognition completed: {len(markdown)} characters copied")
         self.set_status(STATUS_DONE)
         self.last_done_timer.start(1800)
