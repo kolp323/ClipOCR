@@ -40,8 +40,8 @@ class ClipOCRError(Exception):
 
 
 def load_config() -> Dict[str, Union[str, int]]:
-    load_dotenv(Path.cwd() / ".env")
-    load_dotenv(Path(sys.executable).resolve().parent / ".env", override=False)
+    load_dotenv(Path.cwd() / ".env", encoding="utf-8-sig")
+    load_dotenv(Path(sys.executable).resolve().parent / ".env", override=False, encoding="utf-8-sig")
 
     api_base_url = os.getenv("CLIPOCR_API_BASE_URL", "").strip()
     api_key = os.getenv("CLIPOCR_API_KEY", "").strip()
