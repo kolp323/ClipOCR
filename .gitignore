@@ -16,6 +16,9 @@ release/
 *.egg-info/
 
 # Local files
+config.json
+logs/
 *.log
+*.zip
 .DS_Store
 Thumbs.db

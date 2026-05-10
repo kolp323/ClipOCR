@@ -10,7 +10,8 @@ if (-not (Test-Path $Python)) {
 & $Python -m pip install -r (Join-Path $ProjectRoot "requirements.txt") pyinstaller
 Push-Location $ProjectRoot
 try {
-    & $Python -m PyInstaller --onefile --name clipocr .\clipocr.py
+    & $Python -m PyInstaller --onefile --windowed --name clipocr .\clipocr_app.py
+    & $Python -m PyInstaller --onefile --name clipocr-cli .\clipocr.py
 }
 finally {
     Pop-Location
@@ -19,7 +20,8 @@ finally {
 $ReleaseDir = Join-Path $ProjectRoot "release\windows"
 New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
 Copy-Item (Join-Path $ProjectRoot "dist\clipocr.exe") (Join-Path $ReleaseDir "clipocr.exe") -Force
-Copy-Item (Join-Path $ProjectRoot ".env.example") (Join-Path $ReleaseDir ".env.example") -Force
+Copy-Item (Join-Path $ProjectRoot "dist\clipocr-cli.exe") (Join-Path $ReleaseDir "clipocr-cli.exe") -Force
 Copy-Item (Join-Path $ProjectRoot "README.md") (Join-Path $ReleaseDir "README.md") -Force
+Copy-Item (Join-Path $ProjectRoot "README.zh-CN.md") (Join-Path $ReleaseDir "README.zh-CN.md") -Force
 
 Write-Host "Windows release created at $ReleaseDir"
