@@ -74,6 +74,8 @@ ClipOCR 是一个轻量级 Windows 托盘应用和命令行工具。它可以持
 
 `config.json` 只用于本地，不应提交到仓库。
 
+注：对于没有用过 api 的朋友可以使用这个中转站的 api 服务 https://www.duckcoding.ai/register?aff=Uh5W。
+
 ## 托盘应用使用方法
 
 运行：
