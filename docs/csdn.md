@@ -25,7 +25,7 @@ https://github.com/kolp323/ClipOCR
 下载地址：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```
 
 ## 二、主要功能
@@ -59,13 +59,13 @@ ClipOCR 适合以下场景：
 打开 GitHub Release 页面：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```
 
 下载 Windows 压缩包：
 
 ```text
-ClipOCR-v0.2.1-windows-x64.zip
+ClipOCR-v0.2.2-windows-x64.zip
 ```
 
 解压后目录中包含：
@@ -74,15 +74,15 @@ ClipOCR-v0.2.1-windows-x64.zip
 clipocr.exe
 clipocr-cli.exe
 README.md
-README.zh-CN.md
+README.en.md
 ```
 
 其中：
 
 - `clipocr.exe` 是 Windows 桌面托盘版本
 - `clipocr-cli.exe` 是命令行版本
-- `README.md` 是英文说明
-- `README.zh-CN.md` 是中文说明
+- `README.md` 是中文说明
+- `README.en.md` 是英文说明
 
 <img src="paste_image/2026-05-11-16-53-52.png" width="75%">
 
@@ -300,9 +300,9 @@ CLI 和桌面版读取同一个 `config.json` 配置文件。
 
 ### 3. 识别完成后为什么粘贴不到内容？
 
-请确认使用的是 `v0.2.1` 或更新版本。
+请确认使用的是 `v0.2.2` 或更新版本。
 
-`v0.2.1` 修复了桌面版识别完成后剪贴板写回不稳定的问题。
+`v0.2.2` 包含桌面版剪贴板写回稳定性修复，并改进了公式识别提示词。
 
 ### 4. 配置文件在哪里？
 
@@ -339,7 +339,7 @@ ClipOCR 目前仍是轻量工具，存在一些限制：
 
 建议准备这些图：
 
-1. GitHub Release 下载页，框出 `ClipOCR-v0.2.1-windows-x64.zip`
+1. GitHub Release 下载页，框出 `ClipOCR-v0.2.2-windows-x64.zip`
 2. 解压后的文件夹，框出 `clipocr.exe`
 3. ClipOCR 主窗口配置页，API Key 打码
 4. 点击 `Start listening` 后的运行状态
@@ -374,5 +374,5 @@ https://github.com/kolp323/ClipOCR
 Release 下载：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```

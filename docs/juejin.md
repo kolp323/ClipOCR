@@ -27,7 +27,7 @@ https://github.com/kolp323/ClipOCR
 下载地址：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```
 
 ## ClipOCR 是什么？
@@ -92,13 +92,13 @@ print("hello clipocr")
 打开 Release 页面：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```
 
 下载：
 
 ```text
-ClipOCR-v0.2.1-windows-x64.zip
+ClipOCR-v0.2.2-windows-x64.zip
 ```
 
 解压后可以看到：
@@ -107,7 +107,7 @@ ClipOCR-v0.2.1-windows-x64.zip
 clipocr.exe
 clipocr-cli.exe
 README.md
-README.zh-CN.md
+README.en.md
 ```
 
 日常使用推荐双击运行：
@@ -118,7 +118,7 @@ clipocr.exe
 
 这是 Windows 托盘版本。
 
-> 配图建议：GitHub Release 下载页面，标出 `ClipOCR-v0.2.1-windows-x64.zip`。
+> 配图建议：GitHub Release 下载页面，标出 `ClipOCR-v0.2.2-windows-x64.zip`。
 
 ## 第一次使用：填写 API 配置
 
@@ -282,7 +282,7 @@ python clipocr.py --print
 
 建议准备这些图：
 
-1. GitHub Release 下载页，框出 `ClipOCR-v0.2.1-windows-x64.zip`
+1. GitHub Release 下载页，框出 `ClipOCR-v0.2.2-windows-x64.zip`
 2. 解压后的文件夹，框出 `clipocr.exe`
 3. ClipOCR 主窗口配置页，API Key 打码
 4. 点击 `Start listening` 后的运行状态
@@ -309,5 +309,5 @@ https://github.com/kolp323/ClipOCR
 Release 下载：
 
 ```text
-https://github.com/kolp323/ClipOCR/releases/tag/v0.2.1
+https://github.com/kolp323/ClipOCR/releases/tag/v0.2.2
 ```
