@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, Union
 
+from PIL import Image
 from PySide6.QtCore import QAbstractNativeEventFilter, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QPushButton,
     QSpinBox,
     QSystemTrayIcon,
@@ -31,6 +33,7 @@ from clipocr_core import (
     ClipOCRError,
     default_config_path,
     image_fingerprint,
+    ocr_image,
     ocr_clipboard_image,
     read_clipboard_image,
     write_text_to_clipboard,
@@ -40,6 +43,7 @@ from clipocr_core import (
 APP_DIR = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 CONFIG_PATH = default_config_path()
 LOG_PATH = APP_DIR / "logs" / "clipocr.log"
+MAX_LOG_BYTES = 1_000_000
 
 STATUS_STOPPED = "closed"
 STATUS_WAITING = "waiting"
@@ -83,13 +87,17 @@ class OcrWorker(QThread):
     finished_ok = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, config: Dict[str, Union[str, int]]) -> None:
+    def __init__(self, config: Dict[str, Union[str, int]], image: Image.Image | None = None) -> None:
         super().__init__()
         self.config = config
+        self.image = image
 
     def run(self) -> None:
         try:
-            self.finished_ok.emit(ocr_clipboard_image(self.config))
+            if self.image is None:
+                self.finished_ok.emit(ocr_clipboard_image(self.config))
+            else:
+                self.finished_ok.emit(ocr_image(self.image, self.config))
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -101,6 +109,9 @@ class MainWindow(QMainWindow):
         self.resize(720, 520)
 
         self.listening = False
+        self.shutting_down = False
+        self.confirming_send = False
+        self.pending_quit = False
         self.worker: OcrWorker | None = None
         self.last_fingerprint: tuple[str, tuple[int, int]] | None = None
         self.last_done_timer = QTimer(self)
@@ -112,6 +123,7 @@ class MainWindow(QMainWindow):
         self.poll_timer.timeout.connect(self.check_clipboard)
         self.hotkey_filter = HotkeyFilter(self.toggle_listening)
         QApplication.instance().installNativeEventFilter(self.hotkey_filter)
+        QApplication.instance().aboutToQuit.connect(self.cleanup)
         self.hotkey_registered = register_hotkey()
         self.config_ready = False
         self.config_save_timer = QTimer(self)
@@ -127,6 +139,8 @@ class MainWindow(QMainWindow):
         self.timeout.setRange(5, 600)
         self.timeout.setValue(60)
         self.start_on_launch = QCheckBox("Start listening when app opens")
+        self.confirm_auto_send = QCheckBox("Confirm before sending images while listening")
+        self.confirm_auto_send.setChecked(True)
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         self.status_label = QLabel("Status: closed")
@@ -145,6 +159,7 @@ class MainWindow(QMainWindow):
         form.addRow("Timeout seconds", self.timeout)
         form.addRow("Global hotkey", QLabel("Ctrl+Alt+O toggles monitoring"))
         form.addRow("", self.start_on_launch)
+        form.addRow("", self.confirm_auto_send)
 
         buttons = QHBoxLayout()
         buttons.addWidget(self.listen_button)
@@ -187,7 +202,7 @@ class MainWindow(QMainWindow):
         run_once_action = QAction("Recognize current clipboard", self)
         run_once_action.triggered.connect(self.recognize_once)
         quit_action = QAction("Quit", self)
-        quit_action.triggered.connect(QApplication.quit)
+        quit_action.triggered.connect(self.request_quit)
         menu.addAction(show_action)
         menu.addAction(self.toggle_action)
         menu.addAction(run_once_action)
@@ -207,8 +222,13 @@ class MainWindow(QMainWindow):
         self.api_base_url.setText(data.get("api_base_url", self.api_base_url.text()))
         self.api_key.setText(data.get("api_key", self.api_key.text()))
         self.model.setText(data.get("model", self.model.text()))
-        self.timeout.setValue(int(data.get("timeout", self.timeout.value())))
+        try:
+            self.timeout.setValue(int(data.get("timeout", self.timeout.value())))
+        except (TypeError, ValueError):
+            self.log("Invalid saved timeout; using default value")
+            self.timeout.setValue(60)
         self.start_on_launch.setChecked(bool(data.get("start_on_launch", False)))
+        self.confirm_auto_send.setChecked(bool(data.get("confirm_auto_send", True)))
 
     def connect_config_autosave(self) -> None:
         self.api_base_url.textChanged.connect(self.schedule_config_save)
@@ -216,6 +236,7 @@ class MainWindow(QMainWindow):
         self.model.textChanged.connect(self.schedule_config_save)
         self.timeout.valueChanged.connect(self.schedule_config_save)
         self.start_on_launch.stateChanged.connect(self.schedule_config_save)
+        self.confirm_auto_send.stateChanged.connect(self.schedule_config_save)
 
     def schedule_config_save(self) -> None:
         if self.config_ready:
@@ -228,7 +249,9 @@ class MainWindow(QMainWindow):
             "model": self.model.text().strip(),
             "timeout": self.timeout.value(),
             "start_on_launch": self.start_on_launch.isChecked(),
+            "confirm_auto_send": self.confirm_auto_send.isChecked(),
         }
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
         if log_result:
             self.log("Config saved")
@@ -284,9 +307,39 @@ class MainWindow(QMainWindow):
 
         if fingerprint == self.last_fingerprint:
             return
-        self.recognize_once(fingerprint)
+        if self.confirm_auto_send.isChecked() and not self.confirm_send_image():
+            self.last_fingerprint = fingerprint
+            self.log("Recognition skipped by user")
+            return
+        self.recognize_once(fingerprint, image)
 
-    def recognize_once(self, fingerprint: tuple[str, tuple[int, int]] | None = None) -> None:
+    def confirm_send_image(self) -> bool:
+        if self.confirming_send:
+            return False
+        self.confirming_send = True
+        was_listening = self.listening
+        if was_listening:
+            self.poll_timer.stop()
+        self.show_window()
+        try:
+            result = QMessageBox.question(
+                self,
+                "Send clipboard image?",
+                "Send the detected clipboard image to the configured OCR API?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            return result == QMessageBox.StandardButton.Yes
+        finally:
+            self.confirming_send = False
+            if was_listening and self.listening and not self.shutting_down:
+                self.poll_timer.start()
+
+    def recognize_once(
+        self,
+        fingerprint: tuple[str, tuple[int, int]] | None = None,
+        image: Image.Image | None = None,
+    ) -> None:
         if self.worker is not None and self.worker.isRunning():
             self.log("Recognition already running")
             return
@@ -302,7 +355,7 @@ class MainWindow(QMainWindow):
 
         self.set_status(STATUS_WORKING)
         self.log("Recognition started")
-        self.worker = OcrWorker(config)
+        self.worker = OcrWorker(config, image)
         self.worker.finished_ok.connect(self.on_recognition_done)
         self.worker.failed.connect(self.on_recognition_failed)
         self.worker.start()
@@ -320,10 +373,14 @@ class MainWindow(QMainWindow):
         self.log(f"Recognition completed: {len(markdown)} characters copied")
         self.set_status(STATUS_DONE)
         self.last_done_timer.start(1800)
+        self.finish_pending_quit()
 
     def on_recognition_failed(self, message: str) -> None:
         self.set_status(STATUS_ERROR)
         self.log(f"Recognition failed: {message}")
+        if self.listening:
+            self.last_done_timer.start(1800)
+        self.finish_pending_quit()
 
     def set_status(self, status: str) -> None:
         labels = {
@@ -361,8 +418,19 @@ class MainWindow(QMainWindow):
         line = f"[{timestamp}] {message}"
         self.log_box.append(line)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        self.rotate_log_if_needed()
         with LOG_PATH.open("a", encoding="utf-8") as file:
             file.write(line + "\n")
+
+    def rotate_log_if_needed(self) -> None:
+        try:
+            if LOG_PATH.exists() and LOG_PATH.stat().st_size > MAX_LOG_BYTES:
+                backup_path = LOG_PATH.with_suffix(".log.1")
+                if backup_path.exists():
+                    backup_path.unlink()
+                LOG_PATH.replace(backup_path)
+        except OSError:
+            pass
 
     def show_window(self) -> None:
         self.show()
@@ -373,12 +441,38 @@ class MainWindow(QMainWindow):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_window()
 
+    def request_quit(self) -> None:
+        if self.worker is not None and self.worker.isRunning():
+            if not self.pending_quit:
+                self.pending_quit = True
+                self.stop_listening()
+                self.run_once_button.setEnabled(False)
+                self.listen_button.setEnabled(False)
+                self.save_button.setEnabled(False)
+                self.log("Recognition is running; ClipOCR will quit when it finishes")
+            return
+        QApplication.quit()
+
+    def finish_pending_quit(self) -> None:
+        if self.pending_quit:
+            QApplication.quit()
+
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.tray.isVisible():
             self.hide()
             event.ignore()
         else:
             event.accept()
+
+    def cleanup(self) -> None:
+        self.shutting_down = True
+        self.poll_timer.stop()
+        self.last_done_timer.stop()
+        if self.hotkey_registered:
+            unregister_hotkey()
+            self.hotkey_registered = False
+        if self.worker is not None and self.worker.isRunning():
+            self.worker.wait()
 
 
 def main() -> int:

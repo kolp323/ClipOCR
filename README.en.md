@@ -1,27 +1,40 @@
 # ClipOCR
 
-ClipOCR 是一个轻量级 Windows 托盘应用和命令行工具。它可以持续监听剪切板中的截图，将图片发送给可配置的视觉大模型 API，完成 OCR 和版面理解，然后整理成干净的 Markdown，并自动写回剪切板。
+ClipOCR turns screenshots into clean, editable Markdown with a lightweight tray app and CLI. It watches the clipboard for images, sends the selected screenshot to an OpenAI-compatible vision chat completions API, cleans the OCR/layout result, and copies Markdown back to the clipboard.
 
-它适合低摩擦笔记、博客写作、论文/课件摘录、Obsidian、Typora、GitHub 文档，以及任何“截图转可编辑 Markdown”的场景。
-
-ClipOCR is a lightweight Windows tray app and CLI tool that watches the clipboard for screenshots, sends the image to a configurable vision model API, converts the OCR and layout result into clean Markdown, and copies the Markdown back to the clipboard.
-
-It is built for low-friction note taking, blog drafting, academic reading, Obsidian, Typora, GitHub documents, and any workflow where screenshots need to become editable Markdown quickly.
+It is designed for note taking, blog drafting, academic reading, documentation work, Obsidian, Typora, GitHub issues, and any workflow where screenshot text needs to become structured Markdown quickly.
 
 [中文说明](README.md)
 
-## Features
+## Product Overview
 
-- Windows tray app with visible status indicators
-- Start or stop clipboard monitoring from the app window, tray menu, or hotkey
-- Global hotkey: `Ctrl+Alt+O` toggles monitoring
-- Manual one-shot recognition for the current clipboard image
-- Configurable OpenAI-compatible vision chat completions API
-- Automatic OCR and layout understanding into Markdown
-- Markdown cleanup for headings, lists, tables, code blocks, and spacing
-- Automatic clipboard write-back after recognition
-- In-app logs and local log file output
-- CLI mode for scripts or quick terminal usage
+ClipOCR focuses on one fast loop:
+
+1. Copy a screenshot.
+2. Let ClipOCR recognize the text and layout.
+3. Paste ready-to-edit Markdown into your editor.
+
+The Windows tray app is the primary experience. It can monitor the clipboard continuously, process the current clipboard image on demand, and show status through the window and tray icon. A CLI is included for scripts and terminal workflows.
+
+## Key Features
+
+- Windows tray app with visible status indicators.
+- Clipboard monitoring for new screenshots.
+- Optional confirmation before monitored images are sent to the OCR API.
+- Manual one-shot recognition for the current clipboard image.
+- Global hotkey: `Ctrl+Alt+O` toggles monitoring.
+- OpenAI-compatible vision chat completions API configuration.
+- Markdown cleanup for headings, lists, tables, code blocks, math, and spacing.
+- Large screenshot downscaling and compression before upload.
+- Automatic clipboard write-back after recognition.
+- Local rotating logs for troubleshooting.
+- CLI mode for single-run OCR.
+
+## How It Works
+
+ClipOCR reads an image from the clipboard, normalizes it for API upload, and sends it with an OCR/layout prompt to the configured vision model. The model response is cleaned into Markdown and written back to the clipboard.
+
+For monitored screenshots, `confirm_auto_send` is enabled by default. The app asks before uploading a detected image so private screenshots are not sent without a final confirmation. Manual recognition sends the current clipboard image immediately.
 
 ## Status Indicators
 
@@ -39,9 +52,9 @@ It is built for low-friction note taking, blog drafting, academic reading, Obsid
 2. Extract the zip to a local folder.
 3. Run `clipocr.exe`.
 4. Fill API Base URL, API Key, Model, and Timeout in the window.
-5. The settings are saved automatically to `config.json` and loaded on the next launch.
+5. The settings are saved to `config.json` and loaded on the next launch.
 
-The release zip contains:
+The Windows release contains:
 
 - `clipocr.exe`: tray app
 - `clipocr-cli.exe`: command-line app
@@ -50,11 +63,9 @@ The release zip contains:
 
 ## Configuration
 
-The app uses one local configuration file: `config.json`.
+ClipOCR uses one local configuration file: `config.json`. You usually do not need to edit it manually because the tray app saves settings automatically.
 
-You normally do not need to edit this file manually. Fill the fields in the app window and ClipOCR saves them automatically.
-
-Manual `config.json` example:
+Example:
 
 ```json
 {
@@ -62,21 +73,21 @@ Manual `config.json` example:
   "api_key": "your_api_key_here",
   "model": "gpt-4o-mini",
   "timeout": 60,
-  "start_on_launch": false
+  "start_on_launch": false,
+  "confirm_auto_send": true
 }
 ```
-
-Configuration fields:
 
 | Field | Required | Description |
 | --- | --- | --- |
 | `api_base_url` | Yes | API base URL. OpenAI-compatible `/v1` endpoints are expected. |
 | `api_key` | Yes | API key used as a Bearer token. |
 | `model` | Yes | Vision-capable model name. |
-| `timeout` | No | Request timeout in seconds. Defaults to `60`. |
+| `timeout` | No | Request timeout in seconds. Defaults to `60`; valid range is `5` to `600`. |
 | `start_on_launch` | No | Whether monitoring starts automatically when the tray app opens. |
+| `confirm_auto_send` | No | Whether monitored clipboard images require confirmation before API upload. Defaults to `true`. |
 
-`config.json` is local-only and should not be committed.
+`config.json` is local-only and should not be committed. API keys are stored locally in this file; use a dedicated key when possible.
 
 ## Tray App Usage
 
@@ -86,38 +97,30 @@ Run:
 .\clipocr.exe
 ```
 
-Then use one of these controls:
+Controls:
 
-- Click `Start listening` to watch for new clipboard screenshots.
-- Click `Stop listening` to pause monitoring.
-- Click `Recognize current clipboard` to process the current clipboard image once.
-- Use the tray menu for the same actions.
-- Press `Ctrl+Alt+O` to toggle monitoring.
-- Close the window to keep ClipOCR running in the tray.
-- Use `Quit` from the tray menu to fully exit.
+- `Start listening`: watch for new clipboard screenshots.
+- `Stop listening`: pause clipboard monitoring.
+- `Recognize current clipboard`: process the current clipboard image once.
+- Tray menu: open the app, toggle monitoring, run one-shot recognition, or quit.
+- `Ctrl+Alt+O`: toggle monitoring.
 
 Typical workflow:
 
 1. Start ClipOCR.
-2. Fill and save API settings in the window.
-3. Start monitoring.
+2. Fill and save API settings.
+3. Start monitoring or choose one-shot recognition.
 4. Copy a screenshot to the clipboard.
-5. Wait until the tray icon turns green.
-6. Paste the generated Markdown into your editor.
+5. Confirm API upload if prompted.
+6. Wait until the tray icon turns green.
+7. Paste the generated Markdown into your editor.
 
 ## CLI Usage
 
 The CLI reads the same `config.json` file as the tray app.
 
-Run the CLI once:
-
 ```powershell
 .\clipocr-cli.exe
-```
-
-Also print the Markdown result to the terminal:
-
-```powershell
 .\clipocr-cli.exe --print
 ```
 
@@ -136,6 +139,14 @@ pip install -r requirements.txt
 python clipocr_app.py
 ```
 
+Run tests:
+
+```powershell
+pip install -r requirements-dev.txt
+python -m pytest
+python -m py_compile clipocr_core.py clipocr_app.py clipocr.py
+```
+
 ## Build From Source
 
 Create Windows release files:
@@ -144,12 +155,7 @@ Create Windows release files:
 .\build-windows.ps1
 ```
 
-The release files are written to `release\windows`:
-
-- `clipocr.exe`: tray app
-- `clipocr-cli.exe`: command-line app
-- `README.md`
-- `README.en.md`
+The release files are written to `release\windows`.
 
 Create a Linux CLI executable on Linux or WSL with `python3-venv` installed:
 
@@ -163,12 +169,12 @@ Linux clipboard support requires one of these tools:
 - `xclip` for X11
 - `xsel` as a fallback
 
-## Logs and Local Files
+## Local Files and Logs
 
 ClipOCR may create these local files next to the app:
 
-- `config.json`: app settings and API configuration
-- `logs/clipocr.log`: local log file
+- `config.json`: app settings and API configuration.
+- `logs/clipocr.log`: local log file, rotated at about 1 MB with one `.log.1` backup.
 
 These files are ignored by Git.
 
@@ -193,31 +199,29 @@ These files are ignored by Git.
 
 ### `Config file not found`
 
-Run `clipocr.exe`, fill the settings in the window, and let it create `config.json` automatically.
+Run `clipocr.exe`, fill the settings in the window, and let it create `config.json`.
 
-### `Missing environment variables` or missing config fields
+### Missing config fields
 
-Older versions used `.env`. New versions use `config.json`. Fill the settings in the app window or create `config.json` manually.
+Fill API Base URL, API Key, and Model in the app window, or create `config.json` manually.
 
 ### The tray icon stays blue
 
-ClipOCR is waiting for an image in the clipboard. Copy a screenshot, not plain text.
+ClipOCR is waiting for an image in the clipboard. Copy a screenshot instead of plain text.
 
 ### Recognition fails
 
-Check these items:
+Check that the API key is valid, the model supports image input, the Base URL is OpenAI-compatible, and the network is available. ClipOCR downsizes large images and falls back to JPEG compression, but extremely large or complex screenshots may still need cropping.
 
-- API key is valid.
-- Model supports image input.
-- Base URL is OpenAI-compatible.
-- Network connection is available.
-- The screenshot is not too large for the selected model.
+### The app asks before sending images
+
+This is controlled by `confirm_auto_send`. It is enabled by default for monitored clipboard images. Manual one-shot recognition still sends the current clipboard image immediately.
 
 ### Hotkey does not work
 
 `Ctrl+Alt+O` may already be used by another app. Use the app window or tray menu instead.
 
-## Known Limitations
+## Current Limitations
 
 - Windows is the primary target for the tray app.
 - Linux support is CLI-oriented and depends on system clipboard tools.
@@ -225,13 +229,13 @@ Check these items:
 - OCR quality depends on the selected vision model and screenshot quality.
 - The app processes one screenshot at a time.
 - No OCR history database is included.
-- API keys are stored locally in `config.json`; use a dedicated key when possible.
+- API keys are stored locally in `config.json`.
 
 ## Roadmap
 
-- Configurable hotkeys
-- Optional image file input
-- `--no-copy` CLI mode
-- Saved debug image for failed OCR attempts
-- OCR history export
-- Better Markdown cleanup presets
+- Configurable hotkeys.
+- Optional image file input.
+- `--no-copy` CLI mode.
+- Saved debug image for failed OCR attempts.
+- OCR history export.
+- Markdown cleanup presets.
